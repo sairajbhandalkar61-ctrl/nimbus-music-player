@@ -26,9 +26,11 @@ WORKDIR /app
 # Copy application files
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
+COPY src/ ./src/
+COPY data/ ./data/
 COPY start.py ./
 
-# Build Next.js
+# Build Vite frontend
 WORKDIR /app/frontend
 RUN npm run build
 WORKDIR /app

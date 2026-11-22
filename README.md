@@ -6,11 +6,19 @@
 
 ---
 
-## 🌐 Live Link
+## 🌐 Live Access (Mobile & Laptop/PC)
 
-You can open and enjoy Nimbus on any device (phone, laptop, tablet, desktop):
+Nimbus is accessible across all your devices:
 
-👉 **[https://slot-driving-disco-appreciated.trycloudflare.com](https://slot-driving-disco-appreciated.trycloudflare.com)**
+### 1. 🌍 Public Live Link (Works anywhere on any Phone, Laptop, Tablet, PC)
+👉 **[https://logical-counties-specializing-shape.trycloudflare.com](https://logical-counties-specializing-shape.trycloudflare.com)**
+
+### 2. 📱 Mobile Access on Same Wi-Fi (Ultra-fast LAN)
+When connected to the same Wi-Fi network as this PC, open this on your phone:
+👉 **`http://192.168.1.125:3000`**
+
+### 3. 💻 Local Laptop/PC Access
+👉 **`http://localhost:3000`**
 
 ---
 
@@ -49,23 +57,30 @@ You can open and enjoy Nimbus on any device (phone, laptop, tablet, desktop):
 
 ---
 
-## 🚀 Running Locally
+## 🚀 How to Run
 
-### 1. Backend (FastAPI)
+### Option A: One-Click Live Launch (With Public Tunnel & Mobile Access)
+Double-click `run_live.bat` or run:
 ```bash
-# Start FastAPI backend
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+python run_live.py
 ```
+This automatically builds the frontend, starts the unified server, generates an active public HTTPS tunnel link, and prints mobile and PC access URLs.
 
-### 2. Frontend (Vite + React)
+### Option B: Local Full-Stack Launch
 ```bash
-# Navigate to frontend and start Vite dev server
+python start.py
+```
+Available immediately at `http://localhost:3000` (PC) and `http://<YOUR_LOCAL_IP>:3000` (Mobile).
+
+### Option C: Development Mode (Hot Reload)
+```bash
+# Terminal 1 - FastAPI Backend
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2 - Vite React Frontend
 cd frontend
-npm install
 npm run dev
 ```
-
-The frontend will be available at `http://localhost:3000`.
 
 ---
 

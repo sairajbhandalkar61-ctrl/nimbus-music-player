@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Play, Plus, Activity, Flame, Disc } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { SongArtwork } from './SongArtwork';
 
 export const RecommendationDrawer: React.FC = () => {
   const {
@@ -61,12 +62,8 @@ export const RecommendationDrawer: React.FC = () => {
             {/* Seed Track Reference */}
             {currentTrack && (
               <div className="my-4 p-3 rounded-xl bg-white/5 border border-white/5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                  {currentTrack.artworkUrl ? (
-                    <img src={currentTrack.artworkUrl} alt={currentTrack.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Disc className="w-4 h-4 text-zinc-400" />
-                  )}
+                <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                  <SongArtwork track={currentTrack} className="w-full h-full" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-[10px] uppercase font-mono text-[#fa405e] font-semibold tracking-wider">
@@ -106,12 +103,16 @@ export const RecommendationDrawer: React.FC = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
                       onClick={() => setTrack(rec, true)}
-                      className="group p-3 rounded-xl glass-pill hover:bg-white/10 cursor-pointer border border-white/5 hover:border-white/20 transition-all flex items-center justify-between gap-3"
+                      className="group p-3 rounded-xl song-card hover:bg-white/10 cursor-pointer border border-white/5 hover:border-white/20 transition-all flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="text-xs font-mono text-zinc-500 w-4 text-center">
                           {i + 1}
                         </span>
+
+                        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
+                          <SongArtwork track={rec} className="w-full h-full" showVinylEffect={false} />
+                        </div>
 
                         <div className="min-w-0">
                           <h5 className="text-xs font-semibold text-white truncate group-hover:text-[#fa405e] transition-colors">

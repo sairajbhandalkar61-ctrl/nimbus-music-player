@@ -1,23 +1,37 @@
+import asyncio
 import os
 import sys
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.services.catalog import catalog
 from backend.services.itunes import itunes_service
 from backend.services.proxy import proxy_audio_stream
+from backend.services.artwork import artwork_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[Nimbus Backend] Starting up and loading catalog...")
     catalog.initialize()
+    
+    # Prewarm top gallery tracks so initial view renders 100% with artworks immediately
+    async def prewarm():
+        try:
+            top_tracks = catalog.get_gallery(limit=60)
+            await artwork_service.batch_resolve(top_tracks)
+            print(f"[Nimbus Backend] Artwork cache pre-warmed ({len(artwork_service._cache)} covers ready).")
+        except Exception as e:
+            print(f"[Nimbus Backend] Notice during artwork prewarm: {e}")
+
+    asyncio.create_task(prewarm())
     yield
     print("[Nimbus Backend] Shutting down...")
 
@@ -52,14 +66,21 @@ async def search(
     limit: int = Query(8, ge=1, le=50, description="Max results")
 ):
     results = catalog.search(query=q, limit=limit)
-    return {"query": q, "count": len(results), "tracks": results}
+    enriched = []
+    for t in results:
+        tc = dict(t)
+        tc["artworkUrl"] = artwork_service.get_cached(t["id"])
+        enriched.append(tc)
+    return {"query": q, "count": len(enriched), "tracks": enriched}
 
 @app.get("/api/track/{track_id}")
 async def get_track(track_id: str):
     track = catalog.get_track(track_id)
     if not track:
         raise HTTPException(status_code=404, detail=f"Track ID '{track_id}' not found.")
-    return track
+    tc = dict(track)
+    tc["artworkUrl"] = artwork_service.get_cached(track_id)
+    return tc
 
 @app.get("/api/recommend/{track_id}")
 async def recommend(
@@ -70,11 +91,31 @@ async def recommend(
     if not track:
         raise HTTPException(status_code=404, detail=f"Track ID '{track_id}' not found.")
     
+    seed = dict(track)
+    seed["artworkUrl"] = artwork_service.get_cached(track_id)
+
     recommendations = catalog.recommend(track_id, k=k)
+    enriched_recs = []
+    missing_for_resolve = []
+    for r in recommendations:
+        rc = dict(r)
+        art = artwork_service.get_cached(r["id"])
+        if art:
+            rc["artworkUrl"] = art
+        else:
+            missing_for_resolve.append(rc)
+        enriched_recs.append(rc)
+
+    if missing_for_resolve:
+        resolved = await artwork_service.batch_resolve(missing_for_resolve)
+        for rc in enriched_recs:
+            if not rc.get("artworkUrl") and rc["id"] in resolved:
+                rc["artworkUrl"] = resolved[rc["id"]]
+
     return {
-        "seed_track": track,
-        "k": len(recommendations),
-        "recommendations": recommendations
+        "seed_track": seed,
+        "k": len(enriched_recs),
+        "recommendations": enriched_recs
     }
 
 @app.get("/api/gallery")
@@ -85,13 +126,44 @@ async def get_gallery(
     limit: int = Query(60, ge=1, le=120, description="Max results")
 ):
     tracks = catalog.get_gallery(genre=genre, mood=mood, decade=decade, limit=limit)
+    enriched = []
+    missing_for_resolve = []
+    for t in tracks:
+        tc = dict(t)
+        art = artwork_service.get_cached(t["id"])
+        if art:
+            tc["artworkUrl"] = art
+        else:
+            missing_for_resolve.append(tc)
+        enriched.append(tc)
+
+    # Concurrently resolve top missing items (up to 30) for fast immediate display
+    if missing_for_resolve:
+        resolved = await artwork_service.batch_resolve(missing_for_resolve[:30])
+        for tc in enriched:
+            if not tc.get("artworkUrl") and tc["id"] in resolved:
+                tc["artworkUrl"] = resolved[tc["id"]]
+
     return {
         "genre": genre,
         "mood": mood,
         "decade": decade,
-        "count": len(tracks),
-        "tracks": tracks
+        "count": len(enriched),
+        "tracks": enriched
     }
+
+@app.get("/api/artworks")
+async def get_artworks(ids: str = Query(..., description="Comma-separated track IDs")):
+    track_ids = [i.strip() for i in ids.split(",") if i.strip()]
+    tracks = []
+    for tid in track_ids:
+        t = catalog.get_track(tid)
+        if t:
+            tracks.append(t)
+        else:
+            tracks.append({"id": tid})
+    results = await artwork_service.batch_resolve(tracks)
+    return {"artworks": results}
 
 @app.get("/api/preview/{track_id}")
 async def get_preview(track_id: str):
@@ -104,6 +176,11 @@ async def get_preview(track_id: str):
         title=track["name"],
         artist=track["artists"]
     )
+    if preview_info.get("artworkUrl"):
+        artwork_service._cache[track_id] = preview_info["artworkUrl"]
+    elif track_id in artwork_service._cache:
+        preview_info["artworkUrl"] = artwork_service._cache[track_id]
+        
     return preview_info
 
 @app.get("/api/stream")
@@ -112,6 +189,22 @@ async def stream_audio(
     request: Request = None
 ):
     return await proxy_audio_stream(url, request)
+
+# Mount frontend dist static files if built
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if os.path.exists(frontend_dist):
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        file_path = os.path.join(frontend_dist, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn

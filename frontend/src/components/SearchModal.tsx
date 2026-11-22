@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Play, Music, Flame } from 'lucide-react';
 import { Track } from '../types';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { SongArtwork } from './SongArtwork';
 
 export const SearchModal: React.FC = () => {
   const { isSearchOpen, setSearchOpen, setTrack } = usePlayerStore();
@@ -119,8 +120,11 @@ export const SearchModal: React.FC = () => {
                     className="p-2.5 rounded-xl hover:bg-white/10 cursor-pointer transition-all flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-[#fa405e] group-hover:text-white transition-colors flex-shrink-0">
-                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                      <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800 relative">
+                        <SongArtwork track={track} className="w-full h-full" showVinylEffect={false} />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Play className="w-3.5 h-3.5 fill-white text-white ml-0.5" />
+                        </div>
                       </div>
                       <div className="min-w-0">
                         <h4 className="text-xs sm:text-sm font-semibold text-white truncate group-hover:text-[#fa405e] transition-colors">

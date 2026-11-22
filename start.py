@@ -1,44 +1,40 @@
 import os
 import sys
+import socket
 import subprocess
-import time
+import uvicorn
 
-port = os.environ.get("PORT", "3000")
-print(f"[SOUNDWAVE] Starting production full-stack services. External PORT={port}")
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
-# 1. Start FastAPI backend on 127.0.0.1:8000
-backend_cmd = [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", "8000"]
-backend_proc = subprocess.Popen(backend_cmd)
-print("[SOUNDWAVE] FastAPI backend starting on 127.0.0.1:8000...")
+def ensure_frontend_build():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    dist_dir = os.path.join(base_dir, "frontend", "dist")
+    if not os.path.exists(dist_dir) or not os.path.exists(os.path.join(dist_dir, "index.html")):
+        print("[Nimbus] Building frontend for production...")
+        frontend_dir = os.path.join(base_dir, "frontend")
+        npm_bin = "npm.cmd" if sys.platform == "win32" else "npm"
+        subprocess.run([npm_bin, "run", "build"], cwd=frontend_dir, check=True)
 
-# 2. Wait a brief moment for backend to initialize
-time.sleep(4)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "3000"))
+    host = os.environ.get("HOST", "0.0.0.0")
 
-# 3. Start Next.js frontend on 0.0.0.0:$PORT
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
-# On Linux / Railway npm is 'npm', on Windows 'npm.cmd'
-npm_bin = "npm.cmd" if sys.platform == "win32" else "npm"
-frontend_cmd = [npm_bin, "start", "--", "-p", str(port)]
-frontend_proc = subprocess.Popen(frontend_cmd, cwd=frontend_dir)
-print(f"[SOUNDWAVE] Next.js frontend starting on 0.0.0.0:{port}...")
+    ensure_frontend_build()
 
-# 4. Monitor both processes
-try:
-    while True:
-        b_code = backend_proc.poll()
-        if b_code is not None:
-            print(f"[SOUNDWAVE] Backend process exited with code {b_code}")
-            frontend_proc.terminate()
-            sys.exit(b_code)
-            
-        f_code = frontend_proc.poll()
-        if f_code is not None:
-            print(f"[SOUNDWAVE] Frontend process exited with code {f_code}")
-            backend_proc.terminate()
-            sys.exit(f_code)
-            
-        time.sleep(2)
-except KeyboardInterrupt:
-    print("[SOUNDWAVE] Shutting down...")
-    backend_proc.terminate()
-    frontend_proc.terminate()
+    local_ip = get_local_ip()
+    print("=" * 60)
+    print("  🎵 Nimbus — Minimalist Audio Player & Recommender")
+    print("=" * 60)
+    print(f"  💻 Local (Laptop/PC):  http://localhost:{port}")
+    print(f"  📱 Mobile (Same Wi-Fi): http://{local_ip}:{port}")
+    print("=" * 60)
+
+    uvicorn.run("backend.main:app", host=host, port=port)

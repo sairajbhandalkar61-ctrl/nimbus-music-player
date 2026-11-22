@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Sparkles, Flame, Disc, Radio, ExternalLink } from 'lucide-react';
 import { Track } from '../types';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { SongArtwork } from './SongArtwork';
 
 const GENRES = [
   { id: 'all', label: 'All Genres', icon: '🌐' },
@@ -99,7 +100,7 @@ export const GalleryView: React.FC = () => {
   const spotlightTrack = tracks.length > 0 ? tracks[0] : null;
 
   return (
-    <div className="w-full h-screen overflow-y-auto pt-24 pb-36 px-4 sm:px-8 select-none">
+    <div className="w-full h-screen overflow-y-auto pt-24 pb-36 px-4 sm:px-8 select-none overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Top Header & Overview */}
@@ -135,13 +136,7 @@ export const GalleryView: React.FC = () => {
               <div className="flex items-center gap-5 sm:gap-6 min-w-0">
                 {/* Large Disc / Cover */}
                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-2xl flex-shrink-0 bg-zinc-900 border border-white/20">
-                  {spotlightTrack.artworkUrl ? (
-                    <img src={spotlightTrack.artworkUrl} alt={spotlightTrack.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  ) : (
-                    <div className={`w-full h-full bg-gradient-to-tr ${GENRE_GRADIENTS[spotlightTrack.genre || 'indie']} flex items-center justify-center`}>
-                      <Disc className="w-12 h-12 text-white/80 animate-spin-slow" />
-                    </div>
-                  )}
+                  <SongArtwork track={spotlightTrack} className="w-full h-full" />
                   <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="w-12 h-12 rounded-full bg-white text-zinc-950 flex items-center justify-center shadow-2xl">
                       <Play className="w-5 h-5 fill-zinc-950 ml-0.5" />
@@ -285,46 +280,24 @@ export const GalleryView: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {tracks.map((track, idx) => {
+            {tracks.map((track) => {
               const isCurrent = currentTrack?.id === track.id;
-              const grad = GENRE_GRADIENTS[track.genre || 'indie'] || GENRE_GRADIENTS.indie;
 
               return (
-                <motion.div
+                <div
                   key={track.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(idx * 0.02, 0.3) }}
                   onClick={() => setTrack(track, true)}
-                  className={`group relative rounded-2xl p-3 glass-panel cursor-pointer border transition-all duration-200 flex flex-col justify-between ${
+                  style={{ contain: 'paint', willChange: 'transform' }}
+                  className={`group relative rounded-2xl p-3 song-card cursor-pointer border transition-all duration-200 flex flex-col justify-between ${
                     isCurrent
-                      ? 'border-[#fa405e] bg-white/10 shadow-lg shadow-[#fa405e]/20 ring-1 ring-[#fa405e]/50'
-                      : 'border-white/5 hover:border-white/20 hover:bg-white/[0.08]'
+                      ? 'border-[#fa405e] !bg-[#1c1c2a] shadow-lg shadow-[#fa405e]/20 ring-1 ring-[#fa405e]/50'
+                      : 'border-white/5 hover:border-white/20'
                   }`}
                 >
                   <div>
-                    {/* Album Art or Procedural Generative Vinyl Record */}
-                    <div className="relative aspect-square rounded-xl overflow-hidden mb-2.5 shadow-md flex items-center justify-center">
-                      {track.artworkUrl ? (
-                        <img
-                          src={track.artworkUrl}
-                          alt={track.name}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className={`w-full h-full bg-gradient-to-tr ${grad} relative flex flex-col items-center justify-center overflow-hidden`}>
-                          {/* Vinyl Groove Rings */}
-                          <div className="absolute inset-2 rounded-full border border-white/20" />
-                          <div className="absolute inset-5 rounded-full border border-white/15" />
-                          <div className="absolute w-6 h-6 rounded-full bg-black/40 border border-white/30 flex items-center justify-center">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/80" />
-                          </div>
-                          <span className="absolute bottom-2 text-[9px] font-mono tracking-widest text-white/90 uppercase font-semibold">
-                            {track.genre || 'TRACK'}
-                          </span>
-                        </div>
-                      )}
+                    {/* Album Art Cover / Unique Song Logo */}
+                    <div className="relative aspect-square rounded-xl overflow-hidden mb-2.5 shadow-md flex items-center justify-center bg-zinc-900">
+                      <SongArtwork track={track} className="w-full h-full group-hover:scale-105 transition-transform duration-300" />
 
                       {/* Play hover overlay */}
                       <div
@@ -377,7 +350,7 @@ export const GalleryView: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>

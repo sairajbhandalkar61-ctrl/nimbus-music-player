@@ -57,14 +57,12 @@ const fragmentShader = `
     vec2 p = uv * (1.6 / bassScale);
 
     // Turbulence driven by energy
-    float speed = 0.25 + (u_energy * 0.6);
+    float speed = 0.2 + (u_energy * 0.45);
     float t = u_time * speed;
 
-    float n1 = snoise(p + vec2(t * 0.15, t * 0.1));
-    float n2 = snoise(p * 2.1 - vec2(n1 * 0.8, t * 0.2));
-    float n3 = snoise(p * 3.8 + vec2(n2 * 0.6, n1 * 0.5));
-
-    float fluid = n1 * 0.5 + n2 * 0.35 + n3 * 0.15;
+    float n1 = snoise(p + vec2(t * 0.12, t * 0.08));
+    float n2 = snoise(p * 1.9 - vec2(n1 * 0.7, t * 0.15));
+    float fluid = n1 * 0.6 + n2 * 0.4;
 
     // Palette shifts with valence
     // Low valence (0.0): Melancholic deep indigo, slate navy, midnight cyan
@@ -86,7 +84,7 @@ const fragmentShader = `
     vec3 color = colDark;
     color = mix(color, cA, smoothstep(-0.6, 0.6, fluid));
     color = mix(color, cB, smoothstep(0.0, 0.8, n2));
-    color = mix(color, cC, smoothstep(0.3, 0.9, n3) * (0.6 + u_bass * 0.5));
+    color = mix(color, cC, smoothstep(0.2, 0.9, fluid) * (0.5 + u_bass * 0.5));
 
     // Subtle vignette
     float dist = length(uv);
@@ -100,6 +98,12 @@ export const FluidShader: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const activeView = usePlayerStore((s) => s.activeView);
+  const activeViewRef = useRef(activeView);
+
+  useEffect(() => {
+    activeViewRef.current = activeView;
+  }, [activeView]);
 
   // Smooth target variables for 120Hz dampening
   const targets = useRef({
@@ -138,9 +142,9 @@ export const FluidShader: React.FC = () => {
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power' });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.0));
     container.appendChild(renderer.domElement);
 
     const uniforms = {
@@ -176,8 +180,20 @@ export const FluidShader: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
-    // Delta-time exponential damping loop for 120Hz monitors
+    // Delta-time exponential damping loop (optimized for smooth 60-120fps)
+    let frameCount = 0;
     const animate = (now: number) => {
+      animationId = requestAnimationFrame(animate);
+
+      // Skip GPU render if user switched tabs
+      if (document.hidden) return;
+
+      frameCount++;
+      // In gallery mode, throttle background canvas to every 2nd frame to keep list scroll at 60fps
+      if (activeViewRef.current === 'gallery' && frameCount % 2 !== 0) {
+        return;
+      }
+
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
@@ -196,7 +212,6 @@ export const FluidShader: React.FC = () => {
       uniforms.u_bass.value = currents.current.bass;
 
       renderer.render(scene, camera);
-      animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
