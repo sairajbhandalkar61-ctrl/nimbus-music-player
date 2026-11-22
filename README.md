@@ -1,5 +1,7 @@
 # 🎵 Nimbus — Minimalist Audio Player & Recommender
 
+![Nimbus Showcase Banner](nimbus_linkedin_banner.jpg)
+
 > Production-quality, motion-rich music player web app inspired by **daydreamplayer.com**, powered by a **FastAPI** backend, **scikit-learn Cosine Nearest Neighbors** on 157,685 tracks, and a **Vite + React + Three.js** frontend with a 120Hz audio-reactive WebGL fluid shader.
 
 ---
@@ -8,7 +10,7 @@
 
 You can open and enjoy Nimbus on any device (phone, laptop, tablet, desktop):
 
-**[https://0b64133c61db90.app.lhr.life](https://0b64133c61db90.app.lhr.life)**
+👉 **[https://slot-driving-disco-appreciated.trycloudflare.com](https://slot-driving-disco-appreciated.trycloudflare.com)**
 
 ---
 
