@@ -12,16 +12,20 @@ export const Loader: React.FC = () => {
     await unlockAudio();
   };
 
-  // Instant enter on Space or Enter
+  // Instant enter on Space or Enter while loader screen is visible
   useEffect(() => {
+    if (isUnlocked) return;
     const handleKey = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space' || e.code === 'Enter') {
-        handleStart();
+        e.preventDefault();
+        void handleStart();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [isUnlocked]);
 
   return (
     <AnimatePresence>

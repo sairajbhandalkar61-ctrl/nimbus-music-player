@@ -53,10 +53,12 @@ def test_recommend_k_up_to_10(client):
 
     # Must return exactly 10 recommendations (fixing the old n_neighbors=6 bug where only 5 were returned)
     assert len(recs) == 10
-    # Every recommendation must have a similarity score between 0.0 and 1.0
+    # Every recommendation must have a similarity score between 0.0 and 1.0 + match breakdown
     for r in recs:
         assert 0.0 <= r["similarity"] <= 1.0
         assert r["id"] != track_id  # Should not recommend itself
+        assert "feature_deltas" in r
+        assert "match_reason" in r
 
 def test_duplicate_title_handling_by_id(client):
     # In Spotify dataset, many songs share titles (e.g. "Stay", "Intro", "Home")
@@ -100,3 +102,39 @@ def test_stream_proxy_allowlist_and_cors(client):
     from backend.services.proxy import is_allowed_audio_url
     assert is_allowed_audio_url("https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview123.m4a") is True
     assert is_allowed_audio_url("https://example.com/audio.mp3") is False
+
+
+def test_vibe_mix(client):
+    payload = {
+        "valence": 0.85,
+        "energy": 0.8,
+        "danceability": 0.75,
+        "acousticness": 0.15,
+        "tempo": 122.0,
+        "limit": 8,
+    }
+    res = client.post("/api/mix", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["count"] == 8
+    assert len(data["tracks"]) == 8
+    for t in data["tracks"]:
+        assert "id" in t and "name" in t and "similarity" in t
+
+
+def test_capacitor_and_mobile_cors(client):
+    for origin in ("https://localhost", "http://localhost", "capacitor://localhost"):
+        res = client.get("/api/health", headers={"Origin": origin})
+        assert res.status_code == 200
+        assert res.headers.get("access-control-allow-origin") == origin
+
+        preflight = client.options(
+            "/api/mix",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        assert preflight.status_code == 200
+        assert preflight.headers.get("access-control-allow-origin") == origin

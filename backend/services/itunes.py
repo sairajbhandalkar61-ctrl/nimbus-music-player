@@ -5,7 +5,9 @@ import urllib.parse
 from typing import Dict, Optional, Any
 import httpx
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", ".cache")
+from backend.paths import get_cache_dir
+
+CACHE_DIR = get_cache_dir()
 CACHE_FILE = os.path.join(CACHE_DIR, "itunes_cache.json")
 
 class ITunesService:

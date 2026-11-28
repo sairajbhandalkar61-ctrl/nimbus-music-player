@@ -6,7 +6,9 @@ import urllib.parse
 from typing import Dict, List, Optional, Any
 import httpx
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", ".cache")
+from backend.paths import get_cache_dir
+
+CACHE_DIR = get_cache_dir()
 ARTWORK_CACHE_FILE = os.path.join(CACHE_DIR, "artwork_cache.json")
 
 class ArtworkService:

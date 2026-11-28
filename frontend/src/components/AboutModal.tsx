@@ -83,10 +83,10 @@ export const AboutModal: React.FC = () => {
               <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5">
                 <div className="flex items-center gap-2 text-white font-semibold mb-1 text-sm">
                   <Code2 className="w-4 h-4 text-amber-400" />
-                  <span>Typography & Motion Design</span>
+                  <span>Equalizer, Synced Lyrics & Offline Library</span>
                 </div>
                 <p className="text-zinc-400">
-                  Features Bricolage Grotesque variable optical typography with instant <code className="text-zinc-200">font-variation-settings</code> weight morphing ("REGULAR / BOLD"), letter-by-letter animated wordmark loader, and rotational vinyl inertia physics.
+                  Includes a 5-band Web Audio EQ with crossfade, LRCLIB time-synced lyrics, local MP3/WAV/FLAC/M4A playback, persistent playlists with JSON backup, and installable PWA + Windows desktop support.
                 </p>
               </div>
             </div>

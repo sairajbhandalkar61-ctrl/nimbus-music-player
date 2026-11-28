@@ -1,3 +1,6 @@
+# Nimbus Music Player (Full-Stack FastAPI + Vite PWA Server)
+# Deploy this container on any HTTPS host (Render, Railway, Fly.io) to install
+# Nimbus as a Mobile/Desktop PWA and serve as the remote API backend for Android APKs.
 FROM python:3.11-slim
 
 # Install Node.js 20

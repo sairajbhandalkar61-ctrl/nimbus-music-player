@@ -9,8 +9,6 @@ interface RadialVisualizerProps {
 export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const currentTrack = usePlayerStore((s) => s.currentTrack);
-
   const smoothedBars = useRef<Float32Array>(new Float32Array(64));
 
   useEffect(() => {
@@ -21,7 +19,7 @@ export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) =>
 
     const numBars = 64;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const size = (radius * 2 + 160);
+    const size = radius * 2 + 160;
 
     canvas.width = size * dpr;
     canvas.height = size * dpr;
@@ -30,23 +28,16 @@ export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) =>
 
     ctx.scale(dpr, dpr);
 
-    let lastTime = performance.now();
     let animId: number;
 
-    const render = (now: number) => {
-      const dt = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
-
+    const render = () => {
       ctx.clearRect(0, 0, size, size);
 
       const centerX = size / 2;
       const centerY = size / 2;
-      const baseRadius = radius + 6;
-
-      const damp = 1 - Math.exp(-18.0 * dt);
+      const baseRadius = radius + 8;
 
       for (let i = 0; i < numBars; i++) {
-        // Draw radial bar
         const angle = (i / numBars) * Math.PI * 2 - Math.PI / 2;
         const barHeight = smoothedBars.current[i];
 
@@ -55,12 +46,15 @@ export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) =>
         const x2 = centerX + Math.cos(angle) * (baseRadius + barHeight);
         const y2 = centerY + Math.sin(angle) * (baseRadius + barHeight);
 
-        // Dynamic color based on angle and track energy
-        const hue = (i / numBars) * 60 + (currentTrack?.valence ? currentTrack.valence * 280 : 330);
-        ctx.strokeStyle = isPlaying
-          ? `hsla(${hue}, 85%, 65%, ${0.35 + (barHeight / 50) * 0.65})`
-          : 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 2.4;
+        // Symmetric crimson-rose (#fa405e) to violet (#8b5cf6) gradient around the disc
+        const t = Math.abs((i / numBars) * 2 - 1);
+        const r = Math.round(250 + (139 - 250) * t);
+        const g = Math.round(64 + (92 - 64) * t);
+        const b = Math.round(94 + (246 - 94) * t);
+        const alpha = isPlaying ? 0.4 + Math.min(0.6, barHeight / 44) : 0.14;
+
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        ctx.lineWidth = 2.6;
         ctx.lineCap = 'round';
 
         ctx.beginPath();
@@ -75,8 +69,8 @@ export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) =>
     const unsub = audioEngine.subscribeFrequency((data) => {
       const raw = data.rawFrequencies;
       for (let i = 0; i < 64; i++) {
-        const target = isPlaying ? (raw[i] / 255) * 48 : 2;
-        smoothedBars.current[i] += (target - smoothedBars.current[i]) * 0.22;
+        const target = isPlaying ? (raw[i] / 255) * 48 : 3;
+        smoothedBars.current[i] += (target - smoothedBars.current[i]) * 0.24;
       }
     });
 
@@ -86,7 +80,7 @@ export const RadialVisualizer: React.FC<RadialVisualizerProps> = ({ radius }) =>
       cancelAnimationFrame(animId);
       unsub();
     };
-  }, [radius, isPlaying, currentTrack]);
+  }, [radius, isPlaying]);
 
   return (
     <canvas

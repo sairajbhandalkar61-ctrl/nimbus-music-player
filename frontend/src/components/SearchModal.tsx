@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Play, Music, Flame } from 'lucide-react';
+import { Search, X, Play, Music, Flame, Heart, ListPlus } from 'lucide-react';
 import { Track } from '../types';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { SongArtwork } from './SongArtwork';
+import { API_BASE_URL } from '../lib/config';
 
 export const SearchModal: React.FC = () => {
-  const { isSearchOpen, setSearchOpen, setTrack } = usePlayerStore();
+  const { isSearchOpen, setSearchOpen, setTrack, addToQueue, toggleLike, likedTracks } = usePlayerStore();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Track[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -37,7 +38,7 @@ export const SearchModal: React.FC = () => {
   const handleSearch = async (searchTerm: string) => {
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
+      const res = await fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
       if (res.ok) {
         const data = await res.json();
         setResults(data.tracks || []);
@@ -136,12 +137,31 @@ export const SearchModal: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 flex-shrink-0 text-[10px] font-mono text-zinc-500">
-                      <span className="capitalize">{track.mood}</span>
+                    <div
+                      className="flex items-center gap-2 flex-shrink-0 text-[10px] font-mono text-zinc-500"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="capitalize hidden sm:inline">{track.mood}</span>
                       <span className="flex items-center gap-1">
                         <Flame className="w-2.5 h-2.5 text-[#fa405e]" />
                         {track.popularity}%
                       </span>
+                      <button
+                        onClick={() => toggleLike(track)}
+                        className={`p-1.5 rounded-lg hover:bg-white/10 ${
+                          likedTracks.some((t) => t.id === track.id) ? 'text-[#fa405e]' : 'text-zinc-400 hover:text-white'
+                        }`}
+                        title="Like"
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${likedTracks.some((t) => t.id === track.id) ? 'fill-[#fa405e]' : ''}`} />
+                      </button>
+                      <button
+                        onClick={() => addToQueue(track)}
+                        className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10"
+                        title="Add to Queue"
+                      >
+                        <ListPlus className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))

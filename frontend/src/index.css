@@ -24,18 +24,25 @@ body {
   transition: font-variation-settings 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Glassmorphism utility classes */
+/* Frosted obsidian glassmorphism utility classes */
 .glass-panel {
-  background: rgba(14, 14, 20, 0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* High-performance hardware-accelerated song card (avoids GPU blur lag) */
+.glass-dark {
+  background: rgba(8, 8, 12, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* High-performance hardware-accelerated song card (avoids GPU blur lag in dense lists) */
 .song-card {
-  background: rgba(18, 18, 25, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   contain: paint;
   content-visibility: auto;
   contain-intrinsic-size: 260px;
@@ -44,26 +51,27 @@ body {
 }
 
 .song-card:hover {
-  background: rgba(28, 28, 40, 0.96);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(250, 64, 94, 0.35);
 }
 
 .glass-pill {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
 }
 
 .glass-pill:hover {
   background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 /* Range sliders */
 input[type=range] {
   -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 9999px;
   cursor: pointer;
 }
@@ -74,7 +82,7 @@ input[type=range]::-webkit-slider-thumb {
   width: 12px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 0 10px rgba(250, 64, 94, 0.6);
+  box-shadow: 0 0 12px rgba(250, 64, 94, 0.7);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -85,8 +93,8 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -94,10 +102,10 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
 }

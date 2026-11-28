@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Sparkles, Flame, Disc, Radio, ExternalLink } from 'lucide-react';
+import { Play, Sparkles, Flame, Disc, Radio, ExternalLink, Heart, ListPlus, ArrowLeft } from 'lucide-react';
 import { Track } from '../types';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { SongArtwork } from './SongArtwork';
+import { API_BASE_URL } from '../lib/config';
 
 const GENRES = [
   { id: 'all', label: 'All Genres', icon: '🌐' },
@@ -51,14 +52,29 @@ const GENRE_GRADIENTS: Record<string, string> = {
   indie: 'from-purple-500 via-fuchsia-600 to-pink-700',
 };
 
-export const GalleryView: React.FC = () => {
+interface GalleryViewProps {
+  onBackToLibrary?: () => void;
+}
+
+export const GalleryView: React.FC<GalleryViewProps> = ({ onBackToLibrary }) => {
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedMood, setSelectedMood] = useState<string>('all');
   const [selectedDecade, setSelectedDecade] = useState<number>(0);
   const [tracks, setTracks] = useState<Track[]>(() => memoryCache.get('all_all_0') || []);
   const [isLoading, setIsLoading] = useState<boolean>(!memoryCache.has('all_all_0'));
 
-  const { currentTrack, setTrack, isPlaying, setRecommendationOpen, fetchRecommendations } = usePlayerStore();
+  const {
+    currentTrack,
+    setTrack,
+    isPlaying,
+    setRecommendationOpen,
+    fetchRecommendations,
+    likedTracks,
+    toggleLike,
+    addToQueue,
+  } = usePlayerStore();
+
+  const likedIds = useMemo(() => new Set(likedTracks.map((t) => t.id)), [likedTracks]);
 
   const cacheKey = `${selectedGenre}_${selectedMood}_${selectedDecade}`;
 
@@ -76,7 +92,7 @@ export const GalleryView: React.FC = () => {
     const genreParam = selectedGenre === 'all' ? '' : `&genre=${selectedGenre}`;
     const moodParam = selectedMood === 'all' ? '' : `&mood=${selectedMood}`;
     const decadeParam = selectedDecade === 0 ? '' : `&decade=${selectedDecade}`;
-    const url = `/api/gallery?limit=60${genreParam}${moodParam}${decadeParam}`;
+    const url = `${API_BASE_URL}/api/gallery?limit=60${genreParam}${moodParam}${decadeParam}`;
 
     fetch(url)
       .then((res) => res.json())
@@ -106,7 +122,16 @@ export const GalleryView: React.FC = () => {
         {/* Top Header & Overview */}
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 border-b border-white/5 pb-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {onBackToLibrary && (
+                <button
+                  onClick={onBackToLibrary}
+                  className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Personal Library</span>
+                </button>
+              )}
               <span className="px-2.5 py-0.5 rounded-full bg-[#fa405e]/20 text-[#fa405e] font-mono text-[11px] font-bold tracking-wider uppercase">
                 157,685 Library Tracks
               </span>
@@ -330,11 +355,35 @@ export const GalleryView: React.FC = () => {
                   <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-500">
                     <span>{track.decade}s</span>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <span className="flex items-center gap-0.5 text-zinc-400">
                         <Flame className="w-2.5 h-2.5 text-[#fa405e]" />
                         {track.popularity}%
                       </span>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLike(track);
+                        }}
+                        className={`p-1 rounded-md hover:bg-white/10 transition-colors ${
+                          likedIds.has(track.id) ? 'text-[#fa405e]' : 'text-zinc-500 hover:text-white'
+                        }`}
+                        title="Like Song"
+                      >
+                        <Heart className={`w-3 h-3 ${likedIds.has(track.id) ? 'fill-[#fa405e]' : ''}`} />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToQueue(track);
+                        }}
+                        className="p-1 rounded-md hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
+                        title="Add to Queue"
+                      >
+                        <ListPlus className="w-3 h-3" />
+                      </button>
 
                       <button
                         onClick={(e) => {

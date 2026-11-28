@@ -16,10 +16,10 @@ const fragmentShader = `
   uniform float u_valence;
   uniform float u_energy;
   uniform float u_bass;
+  uniform float u_mid;
   uniform vec2 u_resolution;
   varying vec2 vUv;
 
-  // Simplex 2D noise helpers
   vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
 
   float snoise(vec2 v){
@@ -51,44 +51,41 @@ const fragmentShader = `
 
   void main() {
     vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
-    
-    // Scale and pulse with real-time bass
-    float bassScale = 1.0 + (u_bass * 0.18);
-    vec2 p = uv * (1.6 / bassScale);
 
-    // Turbulence driven by energy
-    float speed = 0.2 + (u_energy * 0.45);
+    // Gentle pulse with real-time bass & mid shimmer
+    float bassScale = 1.0 + (u_bass * 0.16);
+    vec2 p = uv * (1.55 / bassScale);
+
+    float speed = 0.18 + (u_energy * 0.42);
     float t = u_time * speed;
 
     float n1 = snoise(p + vec2(t * 0.12, t * 0.08));
-    float n2 = snoise(p * 1.9 - vec2(n1 * 0.7, t * 0.15));
-    float fluid = n1 * 0.6 + n2 * 0.4;
+    float n2 = snoise(p * 1.85 - vec2(n1 * 0.65, t * 0.14 + u_mid * 0.25));
+    float fluid = n1 * 0.58 + n2 * 0.42;
 
-    // Palette shifts with valence
-    // Low valence (0.0): Melancholic deep indigo, slate navy, midnight cyan
-    // High valence (1.0): Warm golden sunset, magenta-crimson, amber radiance
-    vec3 colDark = vec3(0.03, 0.03, 0.05);
+    // Obsidian base (#08080a) with crimson-rose (#fa405e) to violet (#8b5cf6) aurora palette
+    vec3 colDark = vec3(0.031, 0.031, 0.039);
 
-    vec3 coolA = vec3(0.05, 0.15, 0.32);
-    vec3 coolB = vec3(0.18, 0.06, 0.38);
-    vec3 coolC = vec3(0.02, 0.45, 0.55);
+    vec3 coolA = vec3(0.09, 0.07, 0.28);   // Deep midnight indigo
+    vec3 coolB = vec3(0.32, 0.16, 0.60);   // Violet (#8b5cf6 range)
+    vec3 coolC = vec3(0.10, 0.30, 0.45);   // Teal shimmer
 
-    vec3 warmA = vec3(0.58, 0.08, 0.22); // Crimson
-    vec3 warmB = vec3(0.55, 0.28, 0.08); // Amber
-    vec3 warmC = vec3(0.68, 0.12, 0.42); // Magenta
+    vec3 warmA = vec3(0.56, 0.09, 0.22);   // Crimson-rose (#fa405e range)
+    vec3 warmB = vec3(0.45, 0.18, 0.58);   // Violet-magenta
+    vec3 warmC = vec3(0.70, 0.16, 0.32);   // Rose highlight
 
     vec3 cA = mix(coolA, warmA, u_valence);
     vec3 cB = mix(coolB, warmB, u_valence);
     vec3 cC = mix(coolC, warmC, u_valence);
 
     vec3 color = colDark;
-    color = mix(color, cA, smoothstep(-0.6, 0.6, fluid));
-    color = mix(color, cB, smoothstep(0.0, 0.8, n2));
-    color = mix(color, cC, smoothstep(0.2, 0.9, fluid) * (0.5 + u_bass * 0.5));
+    color = mix(color, cA, smoothstep(-0.55, 0.6, fluid) * (0.75 + u_energy * 0.25));
+    color = mix(color, cB, smoothstep(0.05, 0.85, n2) * (0.65 + u_mid * 0.45));
+    color = mix(color, cC, smoothstep(0.25, 0.92, fluid) * (0.45 + u_bass * 0.55));
 
-    // Subtle vignette
+    // Soft radial vignette
     float dist = length(uv);
-    color *= smoothstep(1.6, 0.3, dist);
+    color *= smoothstep(1.65, 0.28, dist);
 
     gl_FragColor = vec4(color, 1.0);
   }
@@ -105,17 +102,18 @@ export const FluidShader: React.FC = () => {
     activeViewRef.current = activeView;
   }, [activeView]);
 
-  // Smooth target variables for 120Hz dampening
   const targets = useRef({
     valence: 0.5,
     energy: 0.5,
     bass: 0.0,
+    mid: 0.0,
   });
 
   const currents = useRef({
     valence: 0.5,
     energy: 0.5,
     bass: 0.0,
+    mid: 0.0,
   });
 
   useEffect(() => {
@@ -128,6 +126,7 @@ export const FluidShader: React.FC = () => {
   useEffect(() => {
     const unsub = audioEngine.subscribeFrequency((data) => {
       targets.current.bass = isPlaying ? data.bass : 0.0;
+      targets.current.mid = isPlaying ? data.mid : 0.0;
     });
     return unsub;
   }, [isPlaying]);
@@ -152,6 +151,7 @@ export const FluidShader: React.FC = () => {
       u_valence: { value: 0.5 },
       u_energy: { value: 0.5 },
       u_bass: { value: 0.0 },
+      u_mid: { value: 0.0 },
       u_resolution: { value: new THREE.Vector2(width, height) },
     };
 
@@ -169,6 +169,7 @@ export const FluidShader: React.FC = () => {
 
     let lastTime = performance.now();
     let animationId: number;
+    let frameCount = 0;
 
     const handleResize = () => {
       if (!container) return;
@@ -180,36 +181,32 @@ export const FluidShader: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
-    // Delta-time exponential damping loop (optimized for smooth 60-120fps)
-    let frameCount = 0;
     const animate = (now: number) => {
       animationId = requestAnimationFrame(animate);
-
-      // Skip GPU render if user switched tabs
       if (document.hidden) return;
 
       frameCount++;
-      // In gallery mode, throttle background canvas to every 2nd frame to keep list scroll at 60fps
-      if (activeViewRef.current === 'gallery' && frameCount % 2 !== 0) {
+      if ((activeViewRef.current === 'gallery' || activeViewRef.current === 'library') && frameCount % 2 !== 0) {
         return;
       }
 
       const dt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;
 
-      // Exponential damping factor: 1 - exp(-lambda * dt)
       const dampValence = 1 - Math.exp(-3.5 * dt);
       const dampEnergy = 1 - Math.exp(-3.5 * dt);
-      const dampBass = 1 - Math.exp(-12.0 * dt);
+      const dampFreq = 1 - Math.exp(-12.0 * dt);
 
       currents.current.valence += (targets.current.valence - currents.current.valence) * dampValence;
       currents.current.energy += (targets.current.energy - currents.current.energy) * dampEnergy;
-      currents.current.bass += (targets.current.bass - currents.current.bass) * dampBass;
+      currents.current.bass += (targets.current.bass - currents.current.bass) * dampFreq;
+      currents.current.mid += (targets.current.mid - currents.current.mid) * dampFreq;
 
       uniforms.u_time.value += dt;
       uniforms.u_valence.value = currents.current.valence;
       uniforms.u_energy.value = currents.current.energy;
       uniforms.u_bass.value = currents.current.bass;
+      uniforms.u_mid.value = currents.current.mid;
 
       renderer.render(scene, camera);
     };

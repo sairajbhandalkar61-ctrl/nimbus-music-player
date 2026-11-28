@@ -1,17 +1,29 @@
 import asyncio
+import mimetypes
 import os
 import sys
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
 # Ensure project root is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+PROJECT_ROOT = getattr(sys, "_MEIPASS", os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Register explicit MIME types for PWA assets (especially on Windows)
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("image/x-icon", ".ico")
+mimetypes.add_type("image/png", ".png")
+mimetypes.add_type("image/svg+xml", ".svg")
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
+from backend.paths import get_resource_path
 from backend.services.catalog import catalog
 from backend.services.itunes import itunes_service
 from backend.services.proxy import proxy_audio_stream
@@ -42,10 +54,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for frontend development and production
+# Enable CORS for frontend development, Capacitor native mobile, and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://localhost",
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "capacitor://localhost",
+        "*",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -152,6 +171,45 @@ async def get_gallery(
         "tracks": enriched
     }
 
+class MixRequest(BaseModel):
+    valence: float = Field(0.5, ge=0.0, le=1.0)
+    energy: float = Field(0.5, ge=0.0, le=1.0)
+    danceability: float = Field(0.5, ge=0.0, le=1.0)
+    acousticness: float = Field(0.5, ge=0.0, le=1.0)
+    tempo: float = Field(120.0, ge=40.0, le=220.0)
+    limit: int = Field(20, ge=1, le=50)
+
+
+@app.post("/api/mix")
+async def create_vibe_mix(req: MixRequest):
+    tracks = catalog.mix(
+        valence=req.valence,
+        energy=req.energy,
+        danceability=req.danceability,
+        acousticness=req.acousticness,
+        tempo=req.tempo,
+        limit=req.limit,
+    )
+    enriched = []
+    missing = []
+    for t in tracks:
+        tc = dict(t)
+        art = artwork_service.get_cached(t["id"])
+        if art:
+            tc["artworkUrl"] = art
+        else:
+            missing.append(tc)
+        enriched.append(tc)
+
+    if missing:
+        resolved = await artwork_service.batch_resolve(missing[:20])
+        for tc in enriched:
+            if not tc.get("artworkUrl") and tc["id"] in resolved:
+                tc["artworkUrl"] = resolved[tc["id"]]
+
+    return {"count": len(enriched), "tracks": enriched}
+
+
 @app.get("/api/artworks")
 async def get_artworks(ids: str = Query(..., description="Comma-separated track IDs")):
     track_ids = [i.strip() for i in ids.split(",") if i.strip()]
@@ -191,7 +249,21 @@ async def stream_audio(
     return await proxy_audio_stream(url, request)
 
 # Mount frontend dist static files if built
-frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+frontend_dist = os.path.abspath(get_resource_path("frontend", "dist"))
+MIME_OVERRIDES = {
+    ".webmanifest": "application/manifest+json",
+    ".js": "application/javascript",
+    ".mjs": "application/javascript",
+    ".css": "text/css",
+    ".html": "text/html",
+    ".png": "image/png",
+    ".ico": "image/x-icon",
+    ".svg": "image/svg+xml",
+    ".json": "application/json",
+    ".woff2": "font/woff2",
+}
+NO_CACHE_FILES = {"sw.js", "registerSW.js", "manifest.webmanifest"}
+
 if os.path.exists(frontend_dist):
     assets_dir = os.path.join(frontend_dist, "assets")
     if os.path.exists(assets_dir):
@@ -201,10 +273,19 @@ if os.path.exists(frontend_dist):
     async def serve_spa(full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="API route not found")
-        file_path = os.path.join(frontend_dist, full_path)
-        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
+
+        clean_path = full_path.lstrip("/")
+        if clean_path:
+            candidate = os.path.abspath(os.path.join(frontend_dist, clean_path))
+            if candidate.startswith(frontend_dist + os.sep) and os.path.isfile(candidate):
+                ext = os.path.splitext(candidate)[1].lower()
+                media_type = MIME_OVERRIDES.get(ext)
+                headers = {"Cache-Control": "no-cache"} if clean_path in NO_CACHE_FILES else {}
+                return FileResponse(candidate, media_type=media_type, headers=headers)
+            if os.path.splitext(clean_path)[1]:
+                raise HTTPException(status_code=404, detail="Static file not found")
+
+        return FileResponse(os.path.join(frontend_dist, "index.html"), media_type="text/html")
 
 if __name__ == "__main__":
     import uvicorn

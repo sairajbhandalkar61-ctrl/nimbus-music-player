@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { Disc, Music } from 'lucide-react';
 import { Track } from '../types';
+import { API_BASE_URL } from '../lib/config';
 
 // Global in-memory artwork cache across component mounts
 export const globalArtworkCache = new Map<string, string>();
@@ -36,7 +37,7 @@ class ArtworkBatchResolver {
     if (ids.length === 0) return;
 
     try {
-      const res = await fetch(`/api/artworks?ids=${ids.join(',')}`);
+      const res = await fetch(`${API_BASE_URL}/api/artworks?ids=${ids.join(',')}`);
       if (res.ok) {
         const data = await res.json();
         const map = data.artworks || {};
