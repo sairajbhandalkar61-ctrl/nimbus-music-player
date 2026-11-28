@@ -6,19 +6,20 @@
 
 ---
 
-## 🌐 Live Access (Mobile & Laptop/PC)
+## 🌐 Permanent Live Link (24/7 Lifetime Cloud Deployment)
 
-Nimbus is accessible across all your devices:
+Nimbus is hosted in the cloud and accessible 24/7 on any phone, tablet, laptop, or desktop in the world:
 
-### 1. 🌍 Public Live Link (Works anywhere on any Phone, Laptop, Tablet, PC)
-👉 **[https://logical-counties-specializing-shape.trycloudflare.com](https://logical-counties-specializing-shape.trycloudflare.com)**
+👉 **[https://soundwave-app-production.up.railway.app](https://soundwave-app-production.up.railway.app)**
 
-### 2. 📱 Mobile Access on Same Wi-Fi (Ultra-fast LAN)
-When connected to the same Wi-Fi network as this PC, open this on your phone:
-👉 **`http://192.168.1.125:3000`**
+*No local server or computer needs to be kept on — this cloud URL is permanently live with automatic CI/CD deployment on every GitHub push.*
 
-### 3. 💻 Local Laptop/PC Access
-👉 **`http://localhost:3000`**
+---
+
+### Local Development & Wi-Fi Access
+- **Local Laptop / PC**: `http://localhost:3000`
+- **Mobile on Same Wi-Fi (LAN)**: `http://192.168.1.125:3000`
+- **Optional Temporary Live Tunnel**: `python run_live.py` (or double-click `run_live.bat`)
 
 ---
 
